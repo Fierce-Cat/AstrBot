@@ -9,14 +9,19 @@ on:
     - cron: "0 0 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-nightly-image:
-    if: github.repository == 'AstrBotDevs/AstrBot' && github.event_name == 'schedule'
+    if: (github.repository == 'AstrBotDevs/AstrBot' && github.event_name == 'schedule') || (github.repository == 'Fierce-Cat/AstrBot' && github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     env:
       DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
-      GHCR_OWNER: astrbotdevs
-      HAS_GHCR_TOKEN: ${{ secrets.GHCR_GITHUB_TOKEN != '' }}
+      GHCR_OWNER: ${{ github.repository == 'Fierce-Cat/AstrBot' && 'fierce-cat' || 'astrbotdevs' }}
+      HAS_DOCKER_HUB_CREDENTIALS: ${{ secrets.DOCKER_HUB_USERNAME != '' && secrets.DOCKER_HUB_PASSWORD != '' }}
+      PUBLISH_GHCR: ${{ secrets.GHCR_GITHUB_TOKEN != '' || github.repository == 'Fierce-Cat/AstrBot' }}
 
     steps:
       - name: Checkout
@@ -70,31 +75,38 @@ jobs:
         uses: docker/setup-buildx-action@v4.1.0
 
       - name: Log in to DockerHub
+        if: env.HAS_DOCKER_HUB_CREDENTIALS == 'true'
         uses: docker/login-action@v4.2.0
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PASSWORD }}
 
       - name: Login to GitHub Container Registry
-        if: env.HAS_GHCR_TOKEN == 'true'
+        if: env.PUBLISH_GHCR == 'true'
         uses: docker/login-action@v4.2.0
         with:
           registry: ghcr.io
-          username: ${{ env.GHCR_OWNER }}
-          password: ${{ secrets.GHCR_GITHUB_TOKEN }}
+          username: ${{ secrets.GHCR_GITHUB_TOKEN != '' && env.GHCR_OWNER || github.actor }}
+          password: ${{ secrets.GHCR_GITHUB_TOKEN != '' && secrets.GHCR_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Build nightly image tags list
         id: test-tags
         run: |
-          TAGS="${{ env.DOCKER_HUB_USERNAME }}/astrbot:nightly-latest
-          ${{ env.DOCKER_HUB_USERNAME }}/astrbot:nightly-${{ steps.test-meta.outputs.build_date }}-${{ steps.test-meta.outputs.short_sha }}"
-          if [ "${{ env.HAS_GHCR_TOKEN }}" = "true" ]; then
-            TAGS="$TAGS
-          ghcr.io/${{ env.GHCR_OWNER }}/astrbot:nightly-latest
-          ghcr.io/${{ env.GHCR_OWNER }}/astrbot:nightly-${{ steps.test-meta.outputs.build_date }}-${{ steps.test-meta.outputs.short_sha }}"
+          tags=()
+          if [ "${{ env.HAS_DOCKER_HUB_CREDENTIALS }}" = "true" ]; then
+            tags+=("${{ env.DOCKER_HUB_USERNAME }}/astrbot:nightly-latest")
+            tags+=("${{ env.DOCKER_HUB_USERNAME }}/astrbot:nightly-${{ steps.test-meta.outputs.build_date }}-${{ steps.test-meta.outputs.short_sha }}")
+          fi
+          if [ "${{ env.PUBLISH_GHCR }}" = "true" ]; then
+            tags+=("ghcr.io/${{ env.GHCR_OWNER }}/astrbot:nightly-latest")
+            tags+=("ghcr.io/${{ env.GHCR_OWNER }}/astrbot:nightly-${{ steps.test-meta.outputs.build_date }}-${{ steps.test-meta.outputs.short_sha }}")
+          fi
+          if [ "${#tags[@]}" -eq 0 ]; then
+            echo "No Docker registry credentials are available for publishing test images." >&2
+            exit 1
           fi
           echo "tags<<EOF" >> $GITHUB_OUTPUT
-          echo "$TAGS" >> $GITHUB_OUTPUT
+          printf '%s\n' "${tags[@]}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Build and Push Nightly Image
