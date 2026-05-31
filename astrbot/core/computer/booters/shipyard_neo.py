@@ -355,11 +355,13 @@ class ShipyardNeoBooter(ComputerBooter):
         access_token: str,
         profile: str = "",
         ttl: int = 3600,
+        cargo_id: str = "",
     ) -> None:
         self._endpoint_url = endpoint_url
         self._access_token = access_token
         self._profile = profile.strip() if profile else ""
         self._ttl = ttl
+        self._cargo_id = cargo_id.strip() if cargo_id else ""
         self._client: BayClient | None = None
         self._sandbox: Sandbox | None = None
         self._bay_manager: Any = None  # BayContainerManager when auto-started
@@ -436,10 +438,14 @@ class ShipyardNeoBooter(ComputerBooter):
         # honoured as an explicit choice, including "python-default".
         resolved_profile = await self._resolve_profile(self._client)
 
-        self._sandbox = await self._client.create_sandbox(
-            profile=resolved_profile,
-            ttl=self._ttl,
-        )
+        create_kwargs: dict[str, Any] = {
+            "profile": resolved_profile,
+            "ttl": self._ttl,
+        }
+        if self._cargo_id:
+            create_kwargs["cargo_id"] = self._cargo_id
+
+        self._sandbox = await self._client.create_sandbox(**create_kwargs)
 
         # --- Readiness gate: wait until sandbox session is READY ---
         await self._wait_until_ready(self._sandbox)
@@ -454,9 +460,11 @@ class ShipyardNeoBooter(ComputerBooter):
         )
 
         logger.info(
-            "Got Shipyard Neo sandbox: %s (profile=%s, capabilities=%s, auto=%s)",
+            "Got Shipyard Neo sandbox: %s "
+            "(profile=%s, cargo_id=%s, capabilities=%s, auto=%s)",
             self._sandbox.id,
             resolved_profile,
+            self._cargo_id or "(managed)",
             list(caps),
             bool(self._bay_manager),
         )

@@ -182,6 +182,10 @@
                         "description": "Профиль Shipyard Neo",
                         "hint": "Профиль песочницы, например, python-default. Оставьте пустым для автоматического выбора самого функционального профиля."
                     },
+                    "shipyard_neo_cargo_id": {
+                        "description": "ID Cargo Shipyard Neo",
+                        "hint": "ID внешнего Cargo. Оставьте пустым, чтобы Bay создал или использовал управляемый Cargo. Если задано, AstrBot использует этот внешний Cargo и обходит warm-pool."
+                    },
                     "shipyard_neo_ttl": {
                         "description": "TTL песочницы Shipyard Neo",
                         "hint": "Время жизни песочницы в секундах."

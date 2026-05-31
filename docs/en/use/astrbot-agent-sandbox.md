@@ -329,6 +329,10 @@ If you choose `Shipyard Neo`, the main configuration items are:
 - `Shipyard Neo Profile`
   - For example `python-default` or `browser-python`
   - If left empty, AstrBot will try to choose a profile with richer capabilities, preferring one that includes the `browser` capability, and fall back to `python-default` if needed
+- `Shipyard Neo Cargo ID`
+  - Optional external Cargo ID to mount as the sandbox workspace
+  - Leave empty to keep the default behavior where Bay creates or uses managed Cargo
+  - When set, AstrBot passes the Cargo ID to Bay during sandbox creation; this uses the specified external Cargo and bypasses warm-pool claiming
 - `Shipyard Neo Sandbox TTL`
   - The upper lifetime limit of the sandbox, defaulting to 3600 seconds (1 hour)
 
@@ -375,6 +379,7 @@ Persistence is provided by Cargo:
 - Filesystem data is stored in Cargo and mounted at `/workspace`
 - Even if the underlying Session is stopped or rebuilt, the data in Cargo is usually retained
 - For profiles with browser capability, browser state may also be persisted together, for example under `/workspace/.browser/profile/`
+- To reuse a specific external Cargo across AstrBot restarts, create that Cargo in Bay and set its ID in `Shipyard Neo Cargo ID`
 
 ### Shipyard (Legacy)
 

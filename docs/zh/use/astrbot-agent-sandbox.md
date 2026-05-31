@@ -435,6 +435,10 @@ docker pull soulter/shipyard-ship:latest
 - `Shipyard Neo Profile`
   - 例如 `python-default`、`browser-python`
   - 如果留空，AstrBot 会优先尝试选择能力更完整、且优先带有 `browser` capability 的 profile，失败时再回退到 `python-default`
+- `Shipyard Neo Cargo ID`
+  - 可选的外部 Cargo ID，用于作为 sandbox 的工作区存储
+  - 留空时保持默认行为，由 Bay 创建或使用托管 Cargo
+  - 填写后，AstrBot 会在创建 sandbox 时把该 Cargo ID 传给 Bay；这会使用指定外部 Cargo，并绕过 warm pool 领取
 - `Shipyard Neo Sandbox TTL`
   - sandbox 生命周期上限，默认值为 3600 秒（1 小时）
 
@@ -481,6 +485,7 @@ docker pull soulter/shipyard-ship:latest
 - 文件系统数据保存在 Cargo 中，并挂载到 `/workspace`
 - 即使底层 Session 被停止或重建，Cargo 中的数据通常仍可保留
 - 对于带浏览器能力的 profile，浏览器状态也可能会一起持久化，例如 `/workspace/.browser/profile/`
+- 如果要让 AstrBot 重启后继续使用指定外部 Cargo，请先在 Bay 中创建该 Cargo，并把它的 ID 填入 `Shipyard Neo Cargo ID`
 
 ### Shipyard（旧方案）
 

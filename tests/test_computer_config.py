@@ -310,6 +310,24 @@ class TestLogComputerConfigChanges:
         assert "shipyard_neo_endpoint" in call_args_str
 
     @patch("astrbot.dashboard.routes.config.logger")
+    def test_cargo_id_change_is_logged_without_masking(self, mock_logger) -> None:
+        """Cargo IDs are operational identifiers, not secrets."""
+        old = {"provider_settings": {"sandbox": {"shipyard_neo_cargo_id": ""}}}
+        new = {
+            "provider_settings": {
+                "sandbox": {"shipyard_neo_cargo_id": "cargo-external-1"}
+            }
+        }
+
+        _log_computer_config_changes(old, new)
+
+        mock_logger.info.assert_called()
+        call_args_str = str(mock_logger.info.call_args_list)
+        assert "shipyard_neo_cargo_id" in call_args_str
+        assert "cargo-external-1" in call_args_str
+        assert "***" not in call_args_str
+
+    @patch("astrbot.dashboard.routes.config.logger")
     def test_secret_key_masked(self, mock_logger) -> None:
         """Any key containing 'secret' is also masked."""
         old = {"provider_settings": {"sandbox": {"my_secret_key": ""}}}

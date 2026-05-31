@@ -184,6 +184,10 @@
             "description": "Shipyard Neo Profile",
             "hint": "Shipyard Neo 沙箱 profile，例如 python-default。留空时自动选择能力更完整的 profile。"
           },
+          "shipyard_neo_cargo_id": {
+            "description": "Shipyard Neo Cargo ID",
+            "hint": "外部 Cargo ID。留空时由 Bay 创建/使用托管 Cargo；填写后 AstrBot 会使用指定外部 Cargo，并绕过 warm pool 领取。"
+          },
           "shipyard_neo_ttl": {
             "description": "Shipyard Neo Sandbox 存活时间(秒)",
             "hint": "Shipyard Neo 沙箱的生存时间（秒）。"

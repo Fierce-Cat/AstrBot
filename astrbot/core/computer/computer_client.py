@@ -599,19 +599,26 @@ async def get_booter(
             token = sandbox_cfg.get("shipyard_neo_access_token", "")
             ttl = sandbox_cfg.get("shipyard_neo_ttl", 3600)
             profile = sandbox_cfg.get("shipyard_neo_profile", "python-default")
+            cargo_id = sandbox_cfg.get("shipyard_neo_cargo_id", "")
 
             # Auto-discover token from Bay's credentials.json if not configured
             if not token:
                 token = _discover_bay_credentials(ep)
 
             logger.info(
-                f"[Computer] Shipyard Neo config: endpoint={ep}, profile={profile}, ttl={ttl}"
+                "[Computer] Shipyard Neo config: "
+                "endpoint=%s, profile=%s, cargo_id=%s, ttl=%s",
+                ep,
+                profile,
+                cargo_id or "(managed)",
+                ttl,
             )
             client = ShipyardNeoBooter(
                 endpoint_url=ep,
                 access_token=token,
                 profile=profile,
                 ttl=ttl,
+                cargo_id=cargo_id,
             )
         elif booter_type == "cua":
             from .booters.cua import CuaBooter, build_cua_booter_kwargs

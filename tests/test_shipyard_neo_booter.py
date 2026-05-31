@@ -136,6 +136,82 @@ class TestWaitUntilReady:
 
 
 # ═══════════════════════════════════════════════════════════════
+# create_sandbox cargo_id forwarding
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestCreateSandboxCargoId:
+    async def _boot_with_cargo_id(self, monkeypatch, cargo_id: str):
+        from astrbot.core.computer.booters.shipyard_neo import ShipyardNeoBooter
+
+        sandbox = SimpleNamespace(
+            id="sandbox-test-1",
+            profile="python-default",
+            capabilities=["python", "shell", "filesystem"],
+        )
+        captured = {}
+
+        class _FakeBayClient:
+            def __init__(self, **kwargs):
+                captured["client_kwargs"] = kwargs
+                self.create_sandbox = AsyncMock(return_value=sandbox)
+                captured["client"] = self
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+        monkeypatch.setattr(
+            "astrbot.core.computer.booters.shipyard_neo.BayClient",
+            _FakeBayClient,
+        )
+        monkeypatch.setattr(
+            ShipyardNeoBooter,
+            "_wait_until_ready",
+            AsyncMock(),
+        )
+
+        booter = ShipyardNeoBooter(
+            endpoint_url="http://localhost:8114",
+            access_token="sk-bay-test",
+            profile="python-default",
+            cargo_id=cargo_id,
+        )
+        await booter.boot("session-1")
+        return captured["client"]
+
+    @pytest.mark.asyncio
+    async def test_empty_cargo_id_is_omitted(self, monkeypatch):
+        client = await self._boot_with_cargo_id(monkeypatch, "")
+
+        client.create_sandbox.assert_awaited_once_with(
+            profile="python-default",
+            ttl=3600,
+        )
+
+    @pytest.mark.asyncio
+    async def test_external_cargo_id_is_forwarded(self, monkeypatch):
+        client = await self._boot_with_cargo_id(monkeypatch, "cargo-external-1")
+
+        client.create_sandbox.assert_awaited_once_with(
+            profile="python-default",
+            ttl=3600,
+            cargo_id="cargo-external-1",
+        )
+
+    @pytest.mark.asyncio
+    async def test_whitespace_cargo_id_is_omitted(self, monkeypatch):
+        client = await self._boot_with_cargo_id(monkeypatch, "   ")
+
+        client.create_sandbox.assert_awaited_once_with(
+            profile="python-default",
+            ttl=3600,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════
 # shutdown
 # ═══════════════════════════════════════════════════════════════
 
@@ -297,6 +373,46 @@ class TestGetBooterRebuild:
         new_booter = computer_client.session_booter.get("session-1")
         assert new_booter is not None
         assert new_booter is not stale
+
+    @pytest.mark.asyncio
+    async def test_neo_cargo_id_config_is_forwarded(self, monkeypatch):
+        """Configured external Cargo ID is passed into ShipyardNeoBooter."""
+        from astrbot.core.computer import computer_client
+
+        captured_kwargs = {}
+        ctx = self._make_fake_context()
+        ctx.get_config().get("provider_settings", {}).get("sandbox", {})[
+            "shipyard_neo_cargo_id"
+        ] = "cargo-external-1"
+
+        class _FakeShipyardNeoBooter:
+            def __init__(self, **kwargs):
+                captured_kwargs.update(kwargs)
+
+            async def boot(self, _sid):
+                pass
+
+            async def shutdown(self, **kwargs):
+                pass
+
+            async def available(self):
+                return True
+
+        monkeypatch.setattr(computer_client, "session_booter", {})
+        monkeypatch.setattr(
+            "astrbot.core.computer.booters.shipyard_neo.ShipyardNeoBooter",
+            _FakeShipyardNeoBooter,
+        )
+
+        with patch(
+            "astrbot.core.computer.computer_client._sync_skills_to_sandbox",
+            AsyncMock(),
+        ):
+            from astrbot.core.computer.computer_client import get_booter
+
+            await get_booter(ctx, "session-cargo")
+
+        assert captured_kwargs["cargo_id"] == "cargo-external-1"
 
     @pytest.mark.asyncio
     async def test_stale_non_neo_booter_calls_plain_shutdown(self, monkeypatch):
